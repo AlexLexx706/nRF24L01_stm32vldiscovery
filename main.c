@@ -144,12 +144,12 @@ int main(void)
 
 			GPIO_SetBits(GPIOC, GPIO_Pin_8);
 
-			uint32_t c = 24000;
+			uint32_t c = 240000;
 			while (c){c--;};
 
 			GPIO_ResetBits(GPIOC, GPIO_Pin_8);
 
-			c = 24000;
+			c = 240000;
 			while (c){c--;};
 
 			NRF24L01_Write(&NRF24L01_1, data, sizeof(data));
@@ -167,12 +167,12 @@ int main(void)
 
 			GPIO_SetBits(GPIOC, GPIO_Pin_9);
 
-			uint32_t c = 24000;
+			uint32_t c = 240000;
 			while (c){c--;};
 
 			GPIO_ResetBits(GPIOC, GPIO_Pin_9);
 
-			c = 24000;
+			c = 240000;
 			while (c){c--;};
 
 			NRF24L01_Write(&NRF24L01_2, data, sizeof(data));
