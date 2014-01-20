@@ -1,0 +1,6 @@
+/test_nrf1/Debug/obj/*.o
+/*.out
+/test_nrf1/Debug/*
+/test_nrf1/test_nrf1.elf.xcodeproj/*.pbxproj
+/*.comarker
+/*.cogui
