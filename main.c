@@ -12,9 +12,10 @@
 NRF24L01_Device NRF24L01_2;
 NRF24L01_Device NRF24L01_1;
 
-#define DEVICE_1_ADDRESS	0X0101010101
-#define DEVICE_2_ADDRESS	0X0202020202
-#define DEVICE_3_ADDRESS	0X0303030303
+
+
+#define DEVICE_1_ADDRESS	0X0101010101LL
+#define DEVICE_2_ADDRESS	0X0202020202LL
 
 void BOARD_Init()
 {
@@ -23,15 +24,15 @@ void BOARD_Init()
 	NRF24L01_1.CSN_Pin 				= GPIO_Pin_12;
 	NRF24L01_1.CSN_GPIO				= GPIOB;
 
-	NRF24L01_1.CE_Pin 				= GPIO_Pin_12;
+	NRF24L01_1.CE_Pin 				= GPIO_Pin_6;
 	NRF24L01_1.CE_GPIO				= GPIOC;
 
-	NRF24L01_1.IRQ_Pin 				= GPIO_Pin_0;
+	NRF24L01_1.IRQ_Pin 				= GPIO_Pin_1;
 	NRF24L01_1.IRQ_GPIO				= GPIOA;
 	NRF24L01_1.IRQ_GPIO_PortSource 	= GPIO_PortSourceGPIOA;
-	NRF24L01_1.IRQ_GPIO_PinSource 	= GPIO_PinSource0;
-	NRF24L01_1.IRQ_EXTI_Line 		= EXTI_Line0;
-	NRF24L01_1.IRQ_NVIC_IRQChannel 	= EXTI0_IRQn;
+	NRF24L01_1.IRQ_GPIO_PinSource 	= GPIO_PinSource1;
+	NRF24L01_1.IRQ_EXTI_Line 		= EXTI_Line1;
+	NRF24L01_1.IRQ_NVIC_IRQChannel 	= EXTI1_IRQn;
 
 	NRF24L01_1.SPIx 				= SPI2;
 	NRF24L01_1.SPIx_Init 			= RF_SPI2_Init;
@@ -39,71 +40,23 @@ void BOARD_Init()
 	NRF24L01_1.SPIx_Write 			= RF_SPI2_Write;
 	NRF24L01_Init(&NRF24L01_1);
 
-	NRF24L01_SetRxPipeAddress(&NRF24L01_1, 0, DEVICE_2_ADDRESS);	// The device should have it's own address on pipe 0
-	NRF24L01_SetTxAddress(&NRF24L01_1, 		  DEVICE_2_ADDRESS);	// Will change depending on who you want to talk to
-
+	NRF24L01_SetRFChannel(&NRF24L01_1, 66);
+	NRF24L01_SetTxAddress(&NRF24L01_1, DEVICE_2_ADDRESS);
+	NRF24L01_SetRxPipeAddress(&NRF24L01_1, 0, DEVICE_2_ADDRESS);
 	NRF24L01_SetRxPipeAddress(&NRF24L01_1, 1, DEVICE_1_ADDRESS);
-	NRF24L01_SetRFChannel(&NRF24L01_1, 67);
-
-	/* nRF24L01_2 */
-	NRF24L01_2.NRF24L01_DeviceName	= "2";
-	NRF24L01_2.CSN_Pin 				= GPIO_Pin_10;
-	NRF24L01_2.CSN_GPIO				= GPIOC;
-	NRF24L01_2.CE_Pin 				= GPIO_Pin_11;
-	NRF24L01_2.CE_GPIO				= GPIOC;
-
-	NRF24L01_2.IRQ_Pin 				= GPIO_Pin_7;
-	NRF24L01_2.IRQ_GPIO				= GPIOC;
-	NRF24L01_2.IRQ_GPIO_PortSource 	= GPIO_PortSourceGPIOC;
-	NRF24L01_2.IRQ_GPIO_PinSource 	= GPIO_PinSource7;
-	NRF24L01_2.IRQ_EXTI_Line 		= EXTI_Line7;
-	NRF24L01_2.IRQ_NVIC_IRQChannel 	= EXTI9_5_IRQn;
-
-	NRF24L01_2.SPIx 				= SPI1;
-	NRF24L01_2.SPIx_Init 			= RF_SPI1_Init;
-	NRF24L01_2.SPIx_WriteRead 		= RF_SPI1_WriteRead;
-	NRF24L01_2.SPIx_Write 			= RF_SPI1_Write;
-	NRF24L01_Init(&NRF24L01_2);
-
-	NRF24L01_SetRxPipeAddress(&NRF24L01_2, 0, DEVICE_1_ADDRESS);	// The device should have it's own address on pipe 0
-	NRF24L01_SetTxAddress(&NRF24L01_2, 		  DEVICE_1_ADDRESS);  	// Will change depending on who you want to talk to
-
-	NRF24L01_SetRxPipeAddress(&NRF24L01_2, 1, DEVICE_2_ADDRESS);
-	NRF24L01_SetRFChannel(&NRF24L01_2, 67);
+	NRF24L01_EnableByteMode(&NRF24L01_1, True);
 }
 
 
 /* Interrupt Service Routines ------------------------------------------------*/
-void EXTI0_IRQHandler(void)
+void EXTI1_IRQHandler(void)
 {
-	if (EXTI_GetITStatus(EXTI_Line0) != RESET)
+	if (EXTI_GetITStatus(EXTI_Line1) != RESET)
 	{
 		NRF24L01_Interrupt(&NRF24L01_1);
 
 		/* Clear the EXTI line pending bit */
-		EXTI_ClearITPendingBit(EXTI_Line0);
-	}
-}
-
-
-
-/* Interrupt Service Routines ------------------------------------------------*/
-void EXTI9_5_IRQHandler(void)
-{
-//	if (EXTI_GetITStatus(EXTI_Line6) != RESET)
-//	{
-//		NRF24L01_Interrupt(&NRF24L01_1);
-//
-//		/* Clear the EXTI line pending bit */
-//		EXTI_ClearITPendingBit(EXTI_Line6);
-//	}
-
-	if (EXTI_GetITStatus(EXTI_Line7) != RESET)
-	{
-		NRF24L01_Interrupt(&NRF24L01_2);
-
-		/* Clear the EXTI line pending bit */
-		EXTI_ClearITPendingBit(EXTI_Line7);
+		EXTI_ClearITPendingBit(EXTI_Line1);
 	}
 }
 
@@ -124,58 +77,27 @@ int main(void)
 
 	BOARD_Init();
 	uint8_t status = NRF24L01_GetStatus(&NRF24L01_1);
-	status = NRF24L01_GetStatus(&NRF24L01_2);
-	uint8_t data[] = {1,2,3,4};
 
-
-	NRF24L01_Write(&NRF24L01_1, data, sizeof(data));
 
 	while(1)
     {
 		if (circularBuffer_GetCount(&NRF24L01_1.RxPipeBuffer[1]) > 0 )
 		{
-			uint8_t * pointer = data;
+			uint8_t data;
 
 			while (!circularBuffer_IsEmpty(&NRF24L01_1.RxPipeBuffer[1]) )
 			{
-				*pointer = circularBuffer_Remove(&NRF24L01_1.RxPipeBuffer[1]);
-				pointer++;
+				data = circularBuffer_Remove(&NRF24L01_1.RxPipeBuffer[1]);
+				GPIO_SetBits(GPIOC, GPIO_Pin_8);
+
+				uint32_t c = 24000;
+				while (c){c--;};
+
+				GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+
+				c = 24000;
+				while (c){c--;};
 			}
-
-			GPIO_SetBits(GPIOC, GPIO_Pin_8);
-
-			uint32_t c = 240000;
-			while (c){c--;};
-
-			GPIO_ResetBits(GPIOC, GPIO_Pin_8);
-
-			c = 240000;
-			while (c){c--;};
-
-			NRF24L01_Write(&NRF24L01_1, data, sizeof(data));
-		}
-
-		if (circularBuffer_GetCount(&NRF24L01_2.RxPipeBuffer[1]) > 0 )
-		{
-			uint8_t * pointer = data;
-
-			while (!circularBuffer_IsEmpty(&NRF24L01_2.RxPipeBuffer[1]) )
-			{
-				*pointer = circularBuffer_Remove(&NRF24L01_2.RxPipeBuffer[1]);
-				pointer++;
-			}
-
-			GPIO_SetBits(GPIOC, GPIO_Pin_9);
-
-			uint32_t c = 240000;
-			while (c){c--;};
-
-			GPIO_ResetBits(GPIOC, GPIO_Pin_9);
-
-			c = 240000;
-			while (c){c--;};
-
-			NRF24L01_Write(&NRF24L01_2, data, sizeof(data));
 		}
     }
 }

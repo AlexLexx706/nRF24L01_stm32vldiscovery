@@ -57,6 +57,7 @@ typedef struct
 	uint32_t ChecksumErrors;	/* Variable to hold the amount of checksum errors */
 	Boolean InTxMode;			/* True if nRF24l01 Device is in TX mode, False otherwise */
 	Boolean Initialized;		/* True if initialized, False otherwise */
+	Boolean byte_mode;		/* True if initialized, False otherwise */
 
 } NRF24L01_Device;
 
@@ -65,6 +66,7 @@ typedef struct
 void NRF24L01_Init(NRF24L01_Device* Device);
 void NRF24L01_WritePayload(NRF24L01_Device* Device, uint8_t* Data, uint8_t ByteCount);
 void NRF24L01_Write(NRF24L01_Device* Device, uint8_t* Data, uint8_t DataCount);
+void NRF24L01_EnableByteMode(NRF24L01_Device* Device, Boolean enable);
 
 uint8_t NRF24L01_SetRxPipeAddressSeparated(NRF24L01_Device* Device, uint8_t Pipe, uint32_t AddressMSBytes, uint8_t AddressLSByte);
 uint8_t NRF24L01_SetTxAddressSeparated(NRF24L01_Device* Device, uint32_t AddressMSBytes, uint8_t AddressLSByte);
