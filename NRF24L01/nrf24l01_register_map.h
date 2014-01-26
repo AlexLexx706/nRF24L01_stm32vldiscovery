@@ -59,7 +59,10 @@
 #define RX_PW_P5    0x16
 #define FIFO_STATUS 0x17
 
-#define IS_VALID_REGISTER(REGISTER)		((REGISTER) >= CONFIG && (REGISTER) <= FIFO_STATUS)
+#define DYNPD	    0x1C
+#define FEATURE	    0x1D
+
+#define IS_VALID_REGISTER(REGISTER)		((REGISTER) >= CONFIG && (REGISTER) <= FIFO_STATUS || (REGISTER == DYNPD) || (REGISTER == FEATURE))
 
 /* Bit Names -----------------------------------------------------------------*/
 #define MASK_RX_DR  6
@@ -101,6 +104,17 @@
 #define RX_FULL     1
 #define RX_EMPTY    0
 
+#define DPL_P5	    5
+#define DPL_P4	    4
+#define DPL_P3	    3
+#define DPL_P2	    2
+#define DPL_P1	    1
+#define DPL_P0	    0
+#define EN_DPL	    2
+#define EN_ACK_PAY  1
+#define EN_DYN_ACK  0
+
+
 /* Pipes ---------------------------------------------------------------------*/
 #define PIPE_0		0x01
 #define PIPE_1		0x02
@@ -121,15 +135,23 @@
 #define DEFAULT_RX5		0xC2C2C2C2C6
 
 /* Commands ------------------------------------------------------------------*/
+
 #define R_REGISTER    0x00
 #define W_REGISTER    0x20
 #define REGISTER_MASK 0x1F
+#define ACTIVATE      0x50
+#define R_RX_PL_WID   0x60
 #define R_RX_PAYLOAD  0x61
 #define W_TX_PAYLOAD  0xA0
+#define W_ACK_PAYLOAD 0xA8
 #define FLUSH_TX      0xE1
 #define FLUSH_RX      0xE2
 #define REUSE_TX_PL   0xE3
 #define NOP           0xFF
+
+
+
+
 
 #define IS_VALID_COMMAND(COMMAND)	((COMMAND) == R_REGISTER || (COMMAND) == W_REGISTER || \
 									(COMMAND) == REGISTER_MASK || (COMMAND) == R_RX_PAYLOAD || \

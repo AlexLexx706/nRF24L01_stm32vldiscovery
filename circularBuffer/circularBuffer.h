@@ -21,7 +21,7 @@
 /* Defines -------------------------------------------------------------------*/
 #ifndef CIRCULARBUFFER_SIZE
 #warning "CIRCULARBUFFER_SIZE is not defined. Will now define it to 64"
-#define CIRCULARBUFFER_SIZE	64
+#define CIRCULARBUFFER_SIZE	256
 #endif
 
 #ifndef CIRCULARBUFFER_DATATYPE
@@ -49,11 +49,21 @@ typedef struct
 																in the buffer */
 	Boolean Initialized;									/** Variable that is set once init has been
 																done on the buffer */
+
+	CIRCULARBUFFER_COUNTTYPE locked_count;					/**  оличество заблокированных данных */
+
+
 } CircularBuffer_TypeDef;
 
 /* Function prototypes -------------------------------------------------------*/
 void circularBuffer_Init(CircularBuffer_TypeDef* CircularBuffer);
 void circularBuffer_Insert(CircularBuffer_TypeDef* CircularBuffer, CIRCULARBUFFER_DATATYPE Data);
+void circularBuffer_InsertLocked(CircularBuffer_TypeDef* CircularBuffer, CIRCULARBUFFER_DATATYPE Data);
+void circularBuffer_UnlockData(CircularBuffer_TypeDef* CircularBuffer);
+void circularBuffer_RemoveLockedData(CircularBuffer_TypeDef* CircularBuffer);
+CIRCULARBUFFER_COUNTTYPE circularBuffer_GetFreeSize(CircularBuffer_TypeDef* CircularBuffer);
+
+
 CIRCULARBUFFER_DATATYPE circularBuffer_Remove(CircularBuffer_TypeDef* CircularBuffer);
 CIRCULARBUFFER_COUNTTYPE circularBuffer_GetCount(CircularBuffer_TypeDef* CircularBuffer);
 uint8_t circularBuffer_IsEmpty(CircularBuffer_TypeDef* CircularBuffer);

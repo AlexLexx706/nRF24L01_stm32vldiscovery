@@ -94,6 +94,11 @@ static void powerUpTx(NRF24L01_Device* Device);
 {
     Device->ChecksumErrors = 0;
     Device->byte_mode = False;
+    Device->dynamic_payloads_enabled = False;
+    Device->packet_size = 0;
+    Device->received_packets_count = 0;
+    Device->packets_count = 0;
+    Device->no_size = False;
     
     uint8_t i;
     for (i = 0; i < MAX_PIPES; i++) { circularBuffer_Init(&Device->RxPipeBuffer[i]); }
@@ -185,8 +190,12 @@ static void powerUpTx(NRF24L01_Device* Device);
     writeRegisterOneByte(Device, RX_PW_P0, PAYLOAD_SIZE);
     writeRegisterOneByte(Device, RX_PW_P1, PAYLOAD_SIZE);
     
+    //Включим динамическуд длинну данных
+    writeRegisterOneByte(Device, FEATURE, PAYLOAD_SIZE);
+
     // Enable all RX pipes
     NRF24L01_EnablePipes(Device, (PIPE_0 | PIPE_1));
+    NRF24L01_EnableDynamicPayloads(Device);
 
     // Flush buffers
     flushTX(Device);
@@ -199,6 +208,44 @@ static void powerUpTx(NRF24L01_Device* Device);
     enableRf(Device);            /* Listening for pakets */
     Device->Initialized = True;
 }
+
+void toggle_features(NRF24L01_Device* Device)
+{
+    selectNrf24l01(Device);
+    Device->SPIx_WriteRead(ACTIVATE);
+	Device->SPIx_WriteRead(0x73);
+	deselectNrf24l01(Device);
+}
+
+
+void NRF24L01_EnableDynamicPayloads(NRF24L01_Device* Device)
+{
+    // Enable dynamic payload throughout the system
+	uint8_t storage;
+    readRegister(Device, FEATURE, &storage, 1);
+    writeRegisterOneByte(Device, FEATURE, storage | (1 << EN_DPL) );
+
+    // If it didn't work, the features are not enabled
+    readRegister(Device, FEATURE, &storage, 1);
+
+    if ( !storage  )
+    {
+		// So enable them and try again
+		toggle_features(Device);
+		readRegister(Device, FEATURE, &storage, 1);
+		writeRegisterOneByte(Device, FEATURE, storage | (1 << EN_DPL) );
+    }
+
+    // Enable dynamic payload on all pipes
+    // Not sure the use case of only having dynamic payload on certain
+    // pipes, so the library does not support it.
+    readRegister(Device, DYNPD, &storage, 1);
+    writeRegisterOneByte(Device, DYNPD, storage | (1 << DPL_P5) | (1 << DPL_P4) | (1 << DPL_P3) | (1 << DPL_P2) | (1 << DPL_P1) | (1 << DPL_P0));
+
+    Device->dynamic_payloads_enabled = True;
+ }
+
+
 
 /**
  * @brief    Write data and send it to the address specified in TX_ADDR
@@ -287,11 +334,6 @@ void NRF24L01_Write(NRF24L01_Device* Device, uint8_t* Data, uint8_t DataCount)
             NRF24L01_WritePayload(Device, Data, tempDataCount);
         }
     }
-}
-
-void NRF24L01_EnableByteMode(NRF24L01_Device* Device, Boolean value)
-{
-	Device->byte_mode = value;
 }
 
 
@@ -385,7 +427,6 @@ uint8_t NRF24L01_GetStatus(NRF24L01_Device* Device)
     selectNrf24l01(Device);
     uint8_t status = Device->SPIx_WriteRead(0);
     deselectNrf24l01(Device);
-    
     return status;
 }
 
@@ -414,6 +455,21 @@ uint8_t NRF24L01_TxFIFOEmpty(NRF24L01_Device* Device)
     uint8_t FIFOStatus = NRF24L01_GetFIFOStatus(Device);
     return ((FIFOStatus & (1 << TX_EMPTY)) >> TX_EMPTY);
 }
+
+/**
+ * @brief    Check if the TX FIFO is empty
+ * @param    Device: The device to use
+ * @param    None
+ * @retval    1: If empty
+ * @retval    0: If not empty
+ */
+uint8_t NRF24L01_RxFIFOEmpty(NRF24L01_Device* Device)
+{
+    uint8_t FIFOStatus = NRF24L01_GetFIFOStatus(Device);
+    return ((FIFOStatus & (1 << RX_EMPTY)) >> RX_EMPTY);
+}
+
+
 
 /**
  * @brief    Enable the specified pipes on nRF24L01
@@ -726,33 +782,73 @@ static void resetToRx(NRF24L01_Device* Device)
  *            the amount of data
  */
 static uint8_t getData(NRF24L01_Device* Device, uint8_t* Storage)
-{    
-    selectNrf24l01(Device);
-    Device->SPIx_WriteRead(R_RX_PAYLOAD);
-    uint8_t dataCount = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
-    uint8_t i;
+{
+	if ( !Device->dynamic_payloads_enabled )
+	{
+		selectNrf24l01(Device);
+		Device->SPIx_WriteRead(R_RX_PAYLOAD);
+		uint8_t dataCount = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
+		uint8_t i;
 
-    uint8_t count = dataCount + 1 ? dataCount + 1 <= PAYLOAD_SIZE : PAYLOAD_SIZE;
+		uint8_t count = dataCount + 1 ? dataCount + 1 <= PAYLOAD_SIZE : PAYLOAD_SIZE;
 
-    for (i = 0; i < count; i++)
-    {
-        Storage[i] = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
-    }    
+		for (i = 0; i < count; i++)
+		{
+			Storage[i] = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
+		}
 
-    deselectNrf24l01(Device);
-    flushRX(Device);
-    writeRegisterOneByte(Device, STATUS, (1 << RX_DR));
-    return dataCount;
+		deselectNrf24l01(Device);
+		flushRX(Device);
+		writeRegisterOneByte(Device, STATUS, (1 << RX_DR));
+		return dataCount;
+	}
+	else
+	{
+		selectNrf24l01(Device);
+		Device->SPIx_WriteRead(R_RX_PL_WID);
+		uint8_t data_count = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
+		deselectNrf24l01(Device);
+
+		selectNrf24l01(Device);
+		Device->SPIx_WriteRead(R_RX_PAYLOAD);
+		uint8_t i;
+
+		for (i = 0; i < data_count; i++)
+			Storage[i] = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
+
+		deselectNrf24l01(Device);
+		//flushRX(Device);
+		writeRegisterOneByte(Device, STATUS, (1 << RX_DR));
+		return data_count;
+	}
 }
 
 static uint8_t readByte(NRF24L01_Device* Device)
 {
-    selectNrf24l01(Device);
-    Device->SPIx_WriteRead(R_RX_PAYLOAD);
-    uint8_t res = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
-    deselectNrf24l01(Device);
-    flushRX(Device);
-    writeRegisterOneByte(Device, STATUS, (1 << RX_DR));
+	uint8_t res;
+	if ( !Device->dynamic_payloads_enabled )
+	{
+		selectNrf24l01(Device);
+		Device->SPIx_WriteRead(R_RX_PAYLOAD);
+		res = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
+		deselectNrf24l01(Device);
+		flushRX(Device);
+		writeRegisterOneByte(Device, STATUS, (1 << RX_DR));
+	}
+	else
+	{
+		selectNrf24l01(Device);
+		Device->SPIx_WriteRead(R_RX_PL_WID);
+		uint8_t dataCount = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
+		deselectNrf24l01(Device);
+
+		selectNrf24l01(Device);
+		Device->SPIx_WriteRead(R_RX_PAYLOAD);
+		res = Device->SPIx_WriteRead(PAYLOAD_FILLER_DATA);
+		deselectNrf24l01(Device);
+		flushRX(Device);
+		writeRegisterOneByte(Device, STATUS, (1 << RX_DR));
+	}
     return res;
 }
 
@@ -804,12 +900,17 @@ static void powerUpTx(NRF24L01_Device* Device)
 void NRF24L01_Interrupt(NRF24L01_Device* Device)
 {
     uint8_t status = NRF24L01_GetStatus(Device);
+
+    if ( !(status & ((1 << TX_DS) | (1 << RX_DR) | (1 << MAX_RT))) )
+    {
+    	status = NRF24L01_GetStatus(Device);
+    }
+
     // Data Sent TX FIFO interrupt, asserted when packet transmitted on TX.
     if (status & (1 << TX_DS))
     {
         ResetStatus(Device);
         powerUpRx(Device);
-        //GPIO_SetBits(GPIOC, GPIO_Pin_9);
     }
     else if (status & (1 << MAX_RT))
     {
@@ -818,43 +919,104 @@ void NRF24L01_Interrupt(NRF24L01_Device* Device)
     }
     else if (status & (1 << RX_DR))
     {
-        uint8_t pipe = GetPipeFromStatus(status);
+    	while( !NRF24L01_RxFIFOEmpty(Device) )
+    	{
+			uint8_t pipe = GetPipeFromStatus(status);
 
-        if (IsValidPipe(pipe))
-        {
-        	if (Device->byte_mode == False )
-        	{
+			if (IsValidPipe(pipe))
+			{
 				uint8_t buffer[MAX_DATA_COUNT];
 				uint8_t availableData = getData(Device, buffer);
 
-				uint8_t receivedChecksum = buffer[availableData];
-				uint8_t calculatedChecksum = NRF24L01_GetChecksum(Device, buffer, availableData);
-
-				if (receivedChecksum == calculatedChecksum)
+				//Packet not empty.
+				if ( availableData )
 				{
-					uint8_t i;
-
-					for (i = 0; i < availableData; i++)
+					//первый пакет цепочки.
+					if ( buffer[0] == 0 )
 					{
-						if (!circularBuffer_IsFull(&Device->RxPipeBuffer[pipe]))
-							circularBuffer_Insert(&Device->RxPipeBuffer[pipe], buffer[i]);
+						//размер данных.
+						uint8_t size = buffer[1];
+
+						//Предидущие данные были потеряны
+						if ( Device->received_packets_count)
+							circularBuffer_RemoveLockedData(&Device->RxPipeBuffer[pipe]);
+
+						Device->received_packets_count = 0;
+						Device->no_size = False;
+
+						//1. посчитаем количество пакетов в цепочке.
+						Device->packets_count = 1;
+
+						if ( size > 30 )
+						{
+							Device->packets_count++;
+							Device->packets_count = Device->packets_count + ( (size - 30) / 31 );
+						}
+
+						//только один пакет.
+						if ( Device->packets_count == 1 )
+						{
+							//Добавим данные в буффер если есть место.
+							if ( (int)(availableData - 2) <= (int)(circularBuffer_GetFreeSize(&Device->RxPipeBuffer[pipe])) )
+							{
+								uint8_t i;
+
+								for (i = 2; i < availableData; i++)
+									circularBuffer_Insert(&Device->RxPipeBuffer[pipe], buffer[i]);
+							}
+						}
+						//первый пакет в цепочке.
+						else
+						{
+							if ( (int)(availableData - 2) <= (int)(circularBuffer_GetFreeSize(&Device->RxPipeBuffer[pipe])) )
+							{
+								uint8_t i;
+
+								//Добавим данные в буффер
+								for (i = 2; i < availableData; i++)
+									circularBuffer_InsertLocked(&Device->RxPipeBuffer[pipe], buffer[i]);
+							}
+							else
+								Device->no_size = True;
+
+							Device->received_packets_count++;
+						}
+					}
+					//не первый.
+					else
+					{
+						//Добавим данные в буффер
+						if ( !Device->no_size )
+						{
+							uint8_t i;
+
+							if ( (int)(availableData - 2) <= (int)(circularBuffer_GetFreeSize(&Device->RxPipeBuffer[pipe])) )
+							{
+								for (i = 1; i < availableData; i++)
+									circularBuffer_InsertLocked(&Device->RxPipeBuffer[pipe], buffer[i]);
+							}
+							else
+								Device->no_size = True;
+						}
+
+						Device->received_packets_count++;
+
+						//Завершили передачу пакетов
+						if ( Device->received_packets_count == Device->packets_count )
+						{
+							//Разблокируем данные
+							if (!Device->no_size)
+								circularBuffer_UnlockData(&Device->RxPipeBuffer[pipe]);
+							//Отбросим данные.
+							else
+								circularBuffer_RemoveLockedData(&Device->RxPipeBuffer[pipe]);
+
+							Device->received_packets_count = 0;
+						}
 					}
 				}
-				else
-				{
-					// Checksum error
-					Device->ChecksumErrors++;
-				}
-        	}
-        	//чтение байта из пакета, тестовый режим.
-        	else
-        	{
-        		uint8_t data = readByte(Device);
-
-				if (!circularBuffer_IsFull(&Device->RxPipeBuffer[pipe]))
-					circularBuffer_Insert(&Device->RxPipeBuffer[pipe], data);
-        	}
-        }
+			}
+    	}
         ResetStatusRxDr(Device);
     }
 }

@@ -14,8 +14,8 @@ NRF24L01_Device NRF24L01_1;
 
 
 
-#define DEVICE_1_ADDRESS	0X0101010101LL
-#define DEVICE_2_ADDRESS	0X0202020202LL
+#define DEVICE_1_ADDRESS	0X0101010101
+#define DEVICE_2_ADDRESS	0X0202020202
 
 void BOARD_Init()
 {
@@ -44,7 +44,6 @@ void BOARD_Init()
 	NRF24L01_SetTxAddress(&NRF24L01_1, DEVICE_2_ADDRESS);
 	NRF24L01_SetRxPipeAddress(&NRF24L01_1, 0, DEVICE_2_ADDRESS);
 	NRF24L01_SetRxPipeAddress(&NRF24L01_1, 1, DEVICE_1_ADDRESS);
-	NRF24L01_EnableByteMode(&NRF24L01_1, True);
 }
 
 
@@ -76,7 +75,8 @@ int main(void)
 
 
 	BOARD_Init();
-	uint8_t status = NRF24L01_GetStatus(&NRF24L01_1);
+	uint8_t data;
+	//NRF24L01_WritePayload(&NRF24L01_1, &data, 1);
 
 
 	while(1)
@@ -85,19 +85,14 @@ int main(void)
 		{
 			uint8_t data;
 
+			GPIO_SetBits(GPIOC, GPIO_Pin_8);
+
 			while (!circularBuffer_IsEmpty(&NRF24L01_1.RxPipeBuffer[1]) )
 			{
 				data = circularBuffer_Remove(&NRF24L01_1.RxPipeBuffer[1]);
-				GPIO_SetBits(GPIOC, GPIO_Pin_8);
-
-				uint32_t c = 24000;
-				while (c){c--;};
-
-				GPIO_ResetBits(GPIOC, GPIO_Pin_8);
-
-				c = 24000;
-				while (c){c--;};
 			}
+
+			GPIO_ResetBits(GPIOC, GPIO_Pin_8);
 		}
     }
 }

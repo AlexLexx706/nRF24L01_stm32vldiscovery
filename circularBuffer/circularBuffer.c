@@ -29,6 +29,7 @@ void circularBuffer_Init(CircularBuffer_TypeDef* CircularBuffer)
 	CircularBuffer->out = CircularBuffer->data;
 	CircularBuffer->count = 0;
 	CircularBuffer->Initialized = True;
+	CircularBuffer->locked_count = 0;
 }
 
 /**
@@ -45,6 +46,42 @@ void circularBuffer_Insert(CircularBuffer_TypeDef* CircularBuffer, CIRCULARBUFFE
 		CircularBuffer->in = CircularBuffer->data;
 	CircularBuffer->count++;
 }
+
+//Add locked data to buffer
+void circularBuffer_InsertLocked(CircularBuffer_TypeDef* CircularBuffer, CIRCULARBUFFER_DATATYPE Data)
+{
+	*CircularBuffer->in = Data;
+
+	if (++CircularBuffer->in == &CircularBuffer->data[CIRCULARBUFFER_SIZE])
+		CircularBuffer->in = CircularBuffer->data;
+	CircularBuffer->locked_count++;
+}
+
+
+//unlock locked data in buffer
+void circularBuffer_UnlockData(CircularBuffer_TypeDef* CircularBuffer)
+{
+	CircularBuffer->count = CircularBuffer->count +  CircularBuffer->locked_count;
+	CircularBuffer->locked_count = 0;
+}
+
+//Remove locked data
+void circularBuffer_RemoveLockedData(CircularBuffer_TypeDef* CircularBuffer)
+{
+	CircularBuffer->in = CircularBuffer->in - CircularBuffer->locked_count;
+
+	if ( CircularBuffer->in < CircularBuffer->data )
+		CircularBuffer->in = &CircularBuffer->data[CIRCULARBUFFER_SIZE] - (CircularBuffer->data - CircularBuffer->in);
+
+	CircularBuffer->locked_count = 0;
+}
+
+CIRCULARBUFFER_COUNTTYPE circularBuffer_GetFreeSize(CircularBuffer_TypeDef* CircularBuffer)
+{
+	return CIRCULARBUFFER_SIZE - (CircularBuffer->locked_count + CircularBuffer->count);
+}
+
+
 
 /**
  * @brief	Removes one item from the end of the buffer
