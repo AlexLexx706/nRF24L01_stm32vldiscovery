@@ -15,7 +15,7 @@ TODO:
 */
 
 /* Includes ------------------------------------------------------------------*/
-#include "millis.h"
+//#include "millis.h"
 
 #include "nrf24l01_register_map.h"
 #include "nrf24l01.h"
@@ -146,21 +146,26 @@ static void powerUpTx(NRF24L01_Device* Device);
     else if (Device->IRQ_GPIO == GPIOB)
         RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
     else if (Device->IRQ_GPIO == GPIOC)
+    {
         RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+        RCC_APB2PeriphClockCmd(RCC_APB2ENR_AFIOEN , ENABLE);
+    }
     else if (Device->IRQ_GPIO == GPIOD)
         RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
 
 
-    GPIO_InitStructure.GPIO_Mode         = GPIO_Mode_IN_FLOATING;
-    GPIO_InitStructure.GPIO_Pin         = Device->IRQ_Pin;
-    GPIO_InitStructure.GPIO_Speed         = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IN_FLOATING;
+    GPIO_InitStructure.GPIO_Pin   = Device->IRQ_Pin;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(Device->IRQ_GPIO, &GPIO_InitStructure);
+    AFIO->EXTICR[0] |= AFIO_EXTICR1_EXTI1_PC;
 
     /* Initialize interrupt */
     /* Connect EXTIx Line to IRQ pin */
     GPIO_EXTILineConfig(Device->IRQ_GPIO_PortSource, Device->IRQ_GPIO_PinSource);
 
     EXTI_InitTypeDef EXTI_InitStructure;
+    EXTI_StructInit(&EXTI_InitStructure);
     EXTI_InitStructure.EXTI_Line         = Device->IRQ_EXTI_Line;
     EXTI_InitStructure.EXTI_LineCmd     = ENABLE;
     EXTI_InitStructure.EXTI_Mode         = EXTI_Mode_Interrupt;
@@ -169,10 +174,10 @@ static void powerUpTx(NRF24L01_Device* Device);
 
     /* Enable and set EXTIx Interrupt to the lowest priority */
     NVIC_InitTypeDef NVIC_InitStructure;
-    NVIC_InitStructure.NVIC_IRQChannel                         = Device->IRQ_NVIC_IRQChannel;
+    NVIC_InitStructure.NVIC_IRQChannel                       = Device->IRQ_NVIC_IRQChannel;
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority     = 0x0F;
-    NVIC_InitStructure.NVIC_IRQChannelSubPriority             = 0x0F;
-    NVIC_InitStructure.NVIC_IRQChannelCmd                     = ENABLE;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority            = 0x0F;
+    NVIC_InitStructure.NVIC_IRQChannelCmd                    = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
 
     /* Initialize spi module */
@@ -190,11 +195,10 @@ static void powerUpTx(NRF24L01_Device* Device);
     writeRegisterOneByte(Device, RX_PW_P0, PAYLOAD_SIZE);
     writeRegisterOneByte(Device, RX_PW_P1, PAYLOAD_SIZE);
     
-    //¬ключим динамическуд длинну данных
-    writeRegisterOneByte(Device, FEATURE, PAYLOAD_SIZE);
-
     // Enable all RX pipes
     NRF24L01_EnablePipes(Device, (PIPE_0 | PIPE_1));
+
+    //¬ключим динамическуд длинну данных
     NRF24L01_EnableDynamicPayloads(Device);
 
     // Flush buffers

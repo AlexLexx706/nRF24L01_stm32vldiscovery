@@ -25,7 +25,9 @@
         <Option name="LTO" value="0"/>
         <Option name="IsNewStartupCode" value="1"/>
         <Option name="Library" value="Not use C Library"/>
-        <LinkedLibraries/>
+        <LinkedLibraries>
+          <Libset dir="" libs="m"/>
+        </LinkedLibraries>
         <MemoryAreas debugInFlashNotRAM="1">
           <Memory name="IROM1" type="ReadOnly" size="0x00020000" startValue="0x08000000"/>
           <Memory name="IRAM1" type="ReadWrite" size="0x00002000" startValue="0x20000000"/>
@@ -73,49 +75,59 @@
     <Component id="444" name="GPIO" path="" type="2"/>
     <Component id="445" name="EXTI" path="" type="2"/>
     <Component id="452" name="SPI" path="" type="2"/>
+    <Component id="456" name="TIM" path="" type="2"/>
+    <Component id="458" name="USART" path="" type="2"/>
     <Component id="464" name="CMSIS Boot" path="" type="2"/>
     <Component id="467" name="MISC" path="" type="2"/>
   </Components>
   <Files>
+    <File name="servo_controll/servo_controll.h" path="servo_controll/servo_controll.h" type="1"/>
     <File name="NRF24L01" path="" type="2"/>
     <File name="NRF24L01/nrf24l01.h" path="NRF24L01/nrf24l01.h" type="1"/>
     <File name="cmsis_boot/startup/startup_stm32f10x_md_vl.c" path="cmsis_boot/startup/startup_stm32f10x_md_vl.c" type="1"/>
     <File name="cmsis_boot/system_stm32f10x.c" path="cmsis_boot/system_stm32f10x.c" type="1"/>
+    <File name="message_processor" path="" type="2"/>
     <File name="stm_lib/inc/misc.h" path="stm_lib/inc/misc.h" type="1"/>
-    <File name="rf_spi" path="" type="2"/>
+    <File name="message_processor/message_processor.h" path="message_processor/message_processor.h" type="1"/>
     <File name="circularBuffer/circularBuffer.h" path="circularBuffer/circularBuffer.h" type="1"/>
+    <File name="rf_spi" path="" type="2"/>
     <File name="circularBuffer" path="" type="2"/>
     <File name="cmsis/core_cm3.h" path="cmsis/core_cm3.h" type="1"/>
+    <File name="stm_lib/inc/stm32f10x_tim.h" path="stm_lib/inc/stm32f10x_tim.h" type="1"/>
     <File name="cmsis_boot" path="" type="2"/>
+    <File name="alex_uart/alex_uart.c" path="alex_uart/alex_uart.c" type="1"/>
     <File name="stm_lib/src/stm32f10x_exti.c" path="stm_lib/src/stm32f10x_exti.c" type="1"/>
     <File name="stm_lib/src/stm32f10x_rcc.c" path="stm_lib/src/stm32f10x_rcc.c" type="1"/>
+    <File name="servo_controll/servo_controll.c" path="servo_controll/servo_controll.c" type="1"/>
     <File name="rf_spi/rf_spi2.h" path="rf_spi/rf_spi2.h" type="1"/>
+    <File name="stm_lib/src/stm32f10x_tim.c" path="stm_lib/src/stm32f10x_tim.c" type="1"/>
     <File name="cmsis_boot/startup" path="" type="2"/>
-    <File name="common.h" path="common.h" type="1"/>
     <File name="stm_lib/src/misc.c" path="stm_lib/src/misc.c" type="1"/>
     <File name="stm_lib/src/stm32f10x_spi.c" path="stm_lib/src/stm32f10x_spi.c" type="1"/>
     <File name="cmsis_boot/stm32f10x.h" path="cmsis_boot/stm32f10x.h" type="1"/>
     <File name="cmsis_boot/stm32f10x_conf.h" path="cmsis_boot/stm32f10x_conf.h" type="1"/>
-    <File name="millis/millis.h" path="millis/millis.h" type="1"/>
     <File name="stm_lib/src" path="" type="2"/>
     <File name="cmsis" path="" type="2"/>
-    <File name="rf_spi/rf_spi1.c" path="rf_spi/rf_spi1.c" type="1"/>
     <File name="stm_lib" path="" type="2"/>
     <File name="stm_lib/inc/stm32f10x_exti.h" path="stm_lib/inc/stm32f10x_exti.h" type="1"/>
     <File name="cmsis/core_cm3.c" path="cmsis/core_cm3.c" type="1"/>
     <File name="stm_lib/inc/stm32f10x_spi.h" path="stm_lib/inc/stm32f10x_spi.h" type="1"/>
+    <File name="alex_uart/alex_uart.h" path="alex_uart/alex_uart.h" type="1"/>
     <File name="cmsis_boot/system_stm32f10x.h" path="cmsis_boot/system_stm32f10x.h" type="1"/>
+    <File name="message_processor/message_processor.c" path="message_processor/message_processor.c" type="1"/>
+    <File name="alex_uart" path="" type="2"/>
     <File name="stm_lib/inc/stm32f10x_rcc.h" path="stm_lib/inc/stm32f10x_rcc.h" type="1"/>
-    <File name="NRF24L01/nrf24l01.c" path="NRF24L01/nrf24l01.c" type="1"/>
     <File name="circularBuffer/circularBuffer.c" path="circularBuffer/circularBuffer.c" type="1"/>
-    <File name="millis" path="" type="2"/>
-    <File name="millis/millis.c" path="millis/millis.c" type="1"/>
+    <File name="NRF24L01/nrf24l01.c" path="NRF24L01/nrf24l01.c" type="1"/>
+    <File name="stm_lib/src/stm32f10x_usart.c" path="stm_lib/src/stm32f10x_usart.c" type="1"/>
+    <File name="message_processor/common.h" path="message_processor/common.h" type="1"/>
     <File name="stm_lib/src/stm32f10x_gpio.c" path="stm_lib/src/stm32f10x_gpio.c" type="1"/>
     <File name="stm_lib/inc" path="" type="2"/>
     <File name="stm_lib/inc/stm32f10x_gpio.h" path="stm_lib/inc/stm32f10x_gpio.h" type="1"/>
+    <File name="servo_controll" path="" type="2"/>
     <File name="NRF24L01/nrf24l01_register_map.h" path="NRF24L01/nrf24l01_register_map.h" type="1"/>
     <File name="main.c" path="main.c" type="1"/>
-    <File name="rf_spi/rf_spi1.h" path="rf_spi/rf_spi1.h" type="1"/>
+    <File name="stm_lib/inc/stm32f10x_usart.h" path="stm_lib/inc/stm32f10x_usart.h" type="1"/>
     <File name="rf_spi/rf_spi2.c" path="rf_spi/rf_spi2.c" type="1"/>
   </Files>
 </Project>

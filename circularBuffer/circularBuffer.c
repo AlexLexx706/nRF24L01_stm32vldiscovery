@@ -76,6 +76,7 @@ void circularBuffer_RemoveLockedData(CircularBuffer_TypeDef* CircularBuffer)
 	CircularBuffer->locked_count = 0;
 }
 
+//get free size
 CIRCULARBUFFER_COUNTTYPE circularBuffer_GetFreeSize(CircularBuffer_TypeDef* CircularBuffer)
 {
 	return CIRCULARBUFFER_SIZE - (CircularBuffer->locked_count + CircularBuffer->count);

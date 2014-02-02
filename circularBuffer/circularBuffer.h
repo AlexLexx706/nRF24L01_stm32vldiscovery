@@ -63,7 +63,6 @@ void circularBuffer_UnlockData(CircularBuffer_TypeDef* CircularBuffer);
 void circularBuffer_RemoveLockedData(CircularBuffer_TypeDef* CircularBuffer);
 CIRCULARBUFFER_COUNTTYPE circularBuffer_GetFreeSize(CircularBuffer_TypeDef* CircularBuffer);
 
-
 CIRCULARBUFFER_DATATYPE circularBuffer_Remove(CircularBuffer_TypeDef* CircularBuffer);
 CIRCULARBUFFER_COUNTTYPE circularBuffer_GetCount(CircularBuffer_TypeDef* CircularBuffer);
 uint8_t circularBuffer_IsEmpty(CircularBuffer_TypeDef* CircularBuffer);
