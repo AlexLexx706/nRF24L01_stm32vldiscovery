@@ -3,6 +3,12 @@
 #include "stm32f10x.h"
 #include "circularBuffer.h"
 
-void init_usart(uint8_t speed, CircularBuffer_TypeDef * buffer);
-void USART2_IRQHandler (void);
+//инициализация uart
+void init_usart(uint32_t speed,					//скорость в бодах
+		CircularBuffer_TypeDef * __in_buffer,	//входной кольцевой буффер
+		CircularBuffer_TypeDef * __out_buffer); //выходной кольцевой буффер
+
+//Положить данные в выходной кольцевой буффер
+void send_data(CIRCULARBUFFER_DATATYPE data);
+
 #endif

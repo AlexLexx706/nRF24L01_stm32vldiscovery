@@ -50,11 +50,11 @@ TODO:
 
 #define DEFAULT_CHANNEL        77
 
-//#define CONFIG_VALUE        ((1 << MASK_RX_DR) | (1 << EN_CRC) | (0 << CRCO))
+//#define CONFIG_VALUE        ((1 << MASK_MAX_RT ) | (1 << MASK_TX_DS) | (1 << MASK_RX_DR) | (1 << EN_CRC) | (0 << CRCO))
 #define CONFIG_VALUE        ((1 << EN_CRC) | (0 << CRCO))         // Test with RX data ready interrupt
 
 #define TIMEOUT_WRITE        500
-#define TX_MODE_TIMEOUT        500
+#define TX_MODE_TIMEOUT      500
 
 #define MAX_PIPES            6
 
@@ -81,6 +81,7 @@ static uint8_t dataReady(NRF24L01_Device* Device);
 
 static void powerUpRx(NRF24L01_Device* Device);
 static void powerUpTx(NRF24L01_Device* Device);
+static void powerDown(NRF24L01_Device* Device);
 
 
 /* Functions -----------------------------------------------------------------*/
@@ -99,6 +100,7 @@ static void powerUpTx(NRF24L01_Device* Device);
     Device->received_packets_count = 0;
     Device->packets_count = 0;
     Device->no_size = False;
+    Device->send_status = 0;
     
     uint8_t i;
     for (i = 0; i < MAX_PIPES; i++) { circularBuffer_Init(&Device->RxPipeBuffer[i]); }
@@ -198,8 +200,11 @@ static void powerUpTx(NRF24L01_Device* Device);
     // Enable all RX pipes
     NRF24L01_EnablePipes(Device, (PIPE_0 | PIPE_1));
 
-    //Включим динамическуд длинну данных
+    //Р’РєР»СЋС‡РёРј РґРёРЅР°РјРёС‡РµСЃРєСѓРґ РґР»РёРЅРЅСѓ РґР°РЅРЅС‹С…
     NRF24L01_EnableDynamicPayloads(Device);
+
+    //СѓС‚Р°РЅРѕРІРєР° СЂРµС‚СЂР°РЅСЃРјРёС‚С‚Р° РІ 0
+    writeRegisterOneByte(Device, SETUP_RETR, 0x10);
 
     // Flush buffers
     flushTX(Device);
@@ -278,19 +283,18 @@ void NRF24L01_WritePayload(NRF24L01_Device* Device, uint8_t* Data, uint8_t DataC
         }
     }
     
-    uint8_t checksum = NRF24L01_GetChecksum(Device, Data, DataCount);
-    
     disableRf(Device);
     powerUpTx(Device);
     flushTX(Device);
-    
+
     selectNrf24l01(Device);
     Device->SPIx_Write(W_TX_PAYLOAD);
-    Device->SPIx_Write(DataCount);    // Write data count
     uint8_t i;
     for (i = 0; i < DataCount; i++) Device->SPIx_Write(Data[i]);        // Write data
-    Device->SPIx_Write(checksum);    // Write checksum
-    for (i++; i <= MAX_DATA_COUNT; i++) Device->SPIx_Write(PAYLOAD_FILLER_DATA);    // Fill the rest of the payload
+
+    if ( !Device->dynamic_payloads_enabled )
+    	for (i++; i <= MAX_DATA_COUNT; i++) Device->SPIx_Write(PAYLOAD_FILLER_DATA);    // Fill the rest of the payload
+
     deselectNrf24l01(Device);
     enableRf(Device);
 }
@@ -900,26 +904,32 @@ static void powerUpTx(NRF24L01_Device* Device)
     writeRegisterOneByte(Device, CONFIG, CONFIG_VALUE | ((1 << PWR_UP) | (0 << PRIM_RX)));
 }
 
+
+uint8_t NRF24L01_get_send_status(NRF24L01_Device* Device)
+{
+	uint8_t res = Device->send_status;
+	Device->send_status = 0;
+	return res;
+}
+
 /* Interrupt Service Routines ------------------------------------------------*/
 void NRF24L01_Interrupt(NRF24L01_Device* Device)
 {
     uint8_t status = NRF24L01_GetStatus(Device);
 
-    if ( !(status & ((1 << TX_DS) | (1 << RX_DR) | (1 << MAX_RT))) )
-    {
+    while ( !(status & ((1 << TX_DS) | (1 << RX_DR) | (1 << MAX_RT))) )
     	status = NRF24L01_GetStatus(Device);
-    }
 
     // Data Sent TX FIFO interrupt, asserted when packet transmitted on TX.
     if (status & (1 << TX_DS))
     {
-        ResetStatus(Device);
         powerUpRx(Device);
+        Device->send_status = 1;
     }
     else if (status & (1 << MAX_RT))
     {
-        ResetStatus(Device);
         powerUpRx(Device);
+        Device->send_status = 2;
     }
     else if (status & (1 << RX_DR))
     {
@@ -935,20 +945,20 @@ void NRF24L01_Interrupt(NRF24L01_Device* Device)
 				//Packet not empty.
 				if ( availableData )
 				{
-					//первый пакет цепочки.
+					//РїРµСЂРІС‹Р№ РїР°РєРµС‚ С†РµРїРѕС‡РєРё.
 					if ( buffer[0] == 0 )
 					{
-						//размер данных.
+						//СЂР°Р·РјРµСЂ РґР°РЅРЅС‹С….
 						uint8_t size = buffer[1];
 
-						//Предидущие данные были потеряны
+						//РџСЂРµРґРёРґСѓС‰РёРµ РґР°РЅРЅС‹Рµ Р±С‹Р»Рё РїРѕС‚РµСЂСЏРЅС‹
 						if ( Device->received_packets_count)
 							circularBuffer_RemoveLockedData(&Device->RxPipeBuffer[pipe]);
 
 						Device->received_packets_count = 0;
 						Device->no_size = False;
 
-						//1. посчитаем количество пакетов в цепочке.
+						//1. РїРѕСЃС‡РёС‚Р°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ РїР°РєРµС‚РѕРІ РІ С†РµРїРѕС‡РєРµ.
 						Device->packets_count = 1;
 
 						if ( size > 30 )
@@ -957,10 +967,10 @@ void NRF24L01_Interrupt(NRF24L01_Device* Device)
 							Device->packets_count = Device->packets_count + ( (size - 30) / 31 );
 						}
 
-						//только один пакет.
+						//С‚РѕР»СЊРєРѕ РѕРґРёРЅ РїР°РєРµС‚.
 						if ( Device->packets_count == 1 )
 						{
-							//Добавим данные в буффер если есть место.
+							//Р”РѕР±Р°РІРёРј РґР°РЅРЅС‹Рµ РІ Р±СѓС„С„РµСЂ РµСЃР»Рё РµСЃС‚СЊ РјРµСЃС‚Рѕ.
 							if ( (int)(availableData - 2) <= (int)(circularBuffer_GetFreeSize(&Device->RxPipeBuffer[pipe])) )
 							{
 								uint8_t i;
@@ -969,14 +979,14 @@ void NRF24L01_Interrupt(NRF24L01_Device* Device)
 									circularBuffer_Insert(&Device->RxPipeBuffer[pipe], buffer[i]);
 							}
 						}
-						//первый пакет в цепочке.
+						//РїРµСЂРІС‹Р№ РїР°РєРµС‚ РІ С†РµРїРѕС‡РєРµ.
 						else
 						{
 							if ( (int)(availableData - 2) <= (int)(circularBuffer_GetFreeSize(&Device->RxPipeBuffer[pipe])) )
 							{
 								uint8_t i;
 
-								//Добавим данные в буффер
+								//Р”РѕР±Р°РІРёРј РґР°РЅРЅС‹Рµ РІ Р±СѓС„С„РµСЂ
 								for (i = 2; i < availableData; i++)
 									circularBuffer_InsertLocked(&Device->RxPipeBuffer[pipe], buffer[i]);
 							}
@@ -986,10 +996,10 @@ void NRF24L01_Interrupt(NRF24L01_Device* Device)
 							Device->received_packets_count++;
 						}
 					}
-					//не первый.
+					//РЅРµ РїРµСЂРІС‹Р№.
 					else
 					{
-						//Добавим данные в буффер
+						//Р”РѕР±Р°РІРёРј РґР°РЅРЅС‹Рµ РІ Р±СѓС„С„РµСЂ
 						if ( !Device->no_size )
 						{
 							uint8_t i;
@@ -1005,13 +1015,13 @@ void NRF24L01_Interrupt(NRF24L01_Device* Device)
 
 						Device->received_packets_count++;
 
-						//Завершили передачу пакетов
+						//Р—Р°РІРµСЂС€РёР»Рё РїРµСЂРµРґР°С‡Сѓ РїР°РєРµС‚РѕРІ
 						if ( Device->received_packets_count == Device->packets_count )
 						{
-							//Разблокируем данные
+							//Р Р°Р·Р±Р»РѕРєРёСЂСѓРµРј РґР°РЅРЅС‹Рµ
 							if (!Device->no_size)
 								circularBuffer_UnlockData(&Device->RxPipeBuffer[pipe]);
-							//Отбросим данные.
+							//РћС‚Р±СЂРѕСЃРёРј РґР°РЅРЅС‹Рµ.
 							else
 								circularBuffer_RemoveLockedData(&Device->RxPipeBuffer[pipe]);
 

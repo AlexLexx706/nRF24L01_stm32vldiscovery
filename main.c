@@ -6,20 +6,13 @@
 #include "nrf24l01.h"
 #include "nrf24l01_register_map.h"
 #include "rf_spi2.h"
-#include "servo_controll/servo_controll.h"
-#include <stm32f10x_tim.h>
-#include <math.h>
-#include "message_processor/message_processor.h"
+#include "alex_uart.h"
 
 #define DEVICE_1_ADDRESS	0X0101010101
 #define DEVICE_2_ADDRESS	0X0202020202
 
-
 //передтчик
 NRF24L01_Device NRF24L01_1;
-
-//сервы.
-static struct GroupsData servos_data;
 
 //прерывание от NRF24L01
 void EXTI1_IRQHandler(void)
@@ -27,72 +20,10 @@ void EXTI1_IRQHandler(void)
 	if (EXTI_GetITStatus(EXTI_Line1) != RESET)
 	{
 		NRF24L01_Interrupt(&NRF24L01_1);
-
-		/* Clear the EXTI line pending bit */
 		EXTI_ClearITPendingBit(EXTI_Line1);
 	}
 }
 
-//таймер 1.
-void TIM1_UP_TIM16_IRQHandler(void)
-{
-    if (TIM_GetITStatus(TIM1, TIM_IT_Update) != RESET)
-    {
-        TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
-        TIM_SetCompare1(TIM1, servos_data.group[0].servos[0].timer_value);
-        TIM_SetCompare2(TIM1, servos_data.group[0].servos[1].timer_value);
-        TIM_SetCompare3(TIM1, servos_data.group[0].servos[2].timer_value);
-        TIM_SetCompare4(TIM1, servos_data.group[0].servos[3].timer_value);
-
-        //отключим прерывание.
-        TIM_ITConfig(TIM1, TIM_IT_Update, DISABLE);
-    }
-}
-
-//таймер 2.
-void TIM2_IRQHandler(void)
-{
-    //Если счётчик переполнился, можно смело закидывать в регистр сравнения новое значение.
-    if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
-    {
-        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-        TIM_SetCompare1(TIM2, servos_data.group[1].servos[0].timer_value);
-        TIM_SetCompare2(TIM2, servos_data.group[1].servos[1].timer_value);
-        TIM_SetCompare3(TIM2, servos_data.group[1].servos[3].timer_value);
-        TIM_SetCompare4(TIM2, servos_data.group[1].servos[2].timer_value);
-        TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
-    }
-}
-
-//таймер 3.
-void TIM3_IRQHandler(void)
-{
-    //Если счётчик переполнился, можно смело закидывать в регистр сравнения новое значение.
-    if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET)
-    {
-        TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
-        TIM_SetCompare1(TIM3, servos_data.group[2].servos[0].timer_value);
-        TIM_SetCompare2(TIM3, servos_data.group[2].servos[1].timer_value);
-        TIM_SetCompare3(TIM3, servos_data.group[2].servos[2].timer_value);
-        TIM_SetCompare4(TIM3, servos_data.group[2].servos[3].timer_value);
-        TIM_ITConfig(TIM3, TIM_IT_Update, DISABLE);
-    }
-}
-
-//таймер 4.
-void TIM4_IRQHandler(void)
-{
-    //Если счётчик переполнился, можно смело закидывать в регистр сравнения новое значение.
-    if (TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET)
-    {
-        TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
-        TIM_SetCompare1(TIM4, servos_data.group[3].servos[0].timer_value);
-        TIM_SetCompare2(TIM4, servos_data.group[3].servos[1].timer_value);
-        TIM_SetCompare3(TIM4, servos_data.group[3].servos[2].timer_value);
-        TIM_SetCompare4(TIM4, servos_data.group[3].servos[3].timer_value);
-        TIM_ITConfig(TIM4, TIM_IT_Update, DISABLE);
-    }
-}
 
 void BOARD_Init()
 {
@@ -141,8 +72,6 @@ void BOARD_Init()
 	NVIC_EnableIRQ (EXTI1_IRQn);
 }
 
-
-
 void init_lamps()
 {
 	RCC_APB2PeriphClockCmd(RCC_APB2ENR_AFIOEN , ENABLE);
@@ -160,87 +89,59 @@ void init_lamps()
 }
 
 
+CircularBuffer_TypeDef uart_in_buffer;
+CircularBuffer_TypeDef uart_out_buffer;
+
 int main(void)
 {
-    //3. инициализация лампочек.
-    init_lamps();
+    uint8_t buffer[40];
+    uint8_t index = 0;
 
 	//1. включаем nrf24l01
 	BOARD_Init();
 
-	//2. инициализация серв.
-    init_servo_data(&servos_data);
-
-    struct GroupSettings g0 = {0, 0.02, 240,
-            {{0.00039,0.00242,},
-            {0.00048, 0.0025},
-            {0.00048, 0.00249},
-            {0.0004, 0.00242}}};
-
-    set_servo_range(&servos_data, &g0);
-
-    struct GroupSettings g1 = {1, 0.02, 240,
-            {{0.00053,0.00255},
-            {0.000449,0.00244},
-            {0.00048,0.0025},
-            {0.000459, 0.00248}}};
-    set_servo_range(&servos_data, &g1);
-
-    struct GroupSettings g2 = {2, 0.02, 240,
-            {{0.000440, 0.002480},
-            {0.000440, 0.002440},
-            {0.000510, 0.002460},
-            {0.000480,  0.002500}}};
-    set_servo_range(&servos_data, &g2);
-
-    struct GroupSettings g3 = {3, 0.02, 240,
-            {{0.00048, 0.0025},
-            {0.00048, 0.00249},
-            {0.000449, 0.00243},
-            {0.00047, 0.0025}}};
-    set_servo_range(&servos_data, &g3);
-
-	//SysTick_Config(SystemCoreClock/50);
-	__enable_irq();
-
-
-    uint8_t ch;
+	//2. включим порт
+	init_usart(256000, &uart_in_buffer, &uart_out_buffer);
+	init_lamps();
 
 	while(1)
     {
-		if (circularBuffer_GetCount(&NRF24L01_1.RxPipeBuffer[1]) > 0 )
+		if (circularBuffer_GetCount(&uart_in_buffer) > 0 )
 		{
-			GPIO_SetBits(GPIOC, GPIO_Pin_8);
-			while (!circularBuffer_IsEmpty(&NRF24L01_1.RxPipeBuffer[1]) )
+			while (!circularBuffer_IsEmpty(&uart_in_buffer) )
 			{
-				ch = circularBuffer_Remove(&NRF24L01_1.RxPipeBuffer[1]);
-				build_cmd(&servos_data, ch);
+				buffer[index] = circularBuffer_Remove(&uart_in_buffer);
+
+				//сбока завершена.
+				if ( (*buffer) == index)
+				{
+					GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+					GPIO_ResetBits(GPIOC, GPIO_Pin_9);
+
+					NRF24L01_Write(&NRF24L01_1, buffer, buffer[0] + 1);
+					index = 0;
+				}
+				else
+					index++;
 			}
-			GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+		}
+
+		uint8_t send_status = NRF24L01_get_send_status(&NRF24L01_1);
+
+		if ( send_status )
+		{
+			if (send_status == 1)
+			{
+				GPIO_SetBits(GPIOC, GPIO_Pin_8);
+				send_data(1);
+				send_data(1);
+			}
+			else
+			{
+				GPIO_SetBits(GPIOC, GPIO_Pin_9);
+				send_data(1);
+				send_data(0);
+			}
 		}
     }
 }
-
-void SysTick_Handler(void)
-{
-    struct ServoPosData spd;
-    spd.group_id = 0;
-    spd.number = 0;
-    static float angle = 0.0;
-    float len =  0.3f;
-    float d_len = (1.f - len) / 2.f;
-
-    spd.value = (cos(angle) + 1.0) / 2.0 * len + d_len;
-    angle = angle + 0.05;
-
-    for (; spd.group_id < GROUPS_COUNT; spd.group_id++ )
-    {
-         spd.number = 0;
-        for (; spd.number < SERVOS_COUNT_IN_GROUP; spd.number++ )
-        {
-            set_servo_angle(&servos_data, &spd);
-        }
-    }
-}
-
-

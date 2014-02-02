@@ -64,7 +64,7 @@ typedef struct
 	uint8_t received_packets_count;
 	uint8_t packets_count;
 	uint8_t no_size;
-
+	uint8_t send_status;
 } NRF24L01_Device;
 
 
@@ -97,5 +97,7 @@ void NRF24L01_WriteDebugToUart(NRF24L01_Device* Device);
 void NRF24L01_Interrupt(NRF24L01_Device* Device);
 
 void NRF24L01_EnableDynamicPayloads(NRF24L01_Device* Device);
+
+uint8_t NRF24L01_get_send_status(NRF24L01_Device* Device);
 
 #endif /* NRF24L01_H_ */

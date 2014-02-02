@@ -4,7 +4,7 @@
 #include <stm32f10x_rcc.h>
 #include <stm32f10x_tim.h>
 #include "servo_controll.h"
-#include "../common.h"
+#include "common.h"
 
 //инициализация данных сервы и таймера
 void init_servo_data(struct GroupsData * groups_data)
