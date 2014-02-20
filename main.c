@@ -126,11 +126,9 @@ int main(void)
 			}
 		}
 
-		uint8_t send_status = NRF24L01_get_send_status(&NRF24L01_1);
-
-		if ( send_status )
+		if ( NRF24L01_1.send_status )
 		{
-			if (send_status == 1)
+			if (NRF24L01_1.send_status == 1)
 			{
 				GPIO_SetBits(GPIOC, GPIO_Pin_8);
 				send_data(1);
@@ -142,6 +140,7 @@ int main(void)
 				send_data(1);
 				send_data(0);
 			}
+			NRF24L01_1.send_status = 0;
 		}
     }
 }

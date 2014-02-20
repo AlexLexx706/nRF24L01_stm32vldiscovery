@@ -204,7 +204,10 @@ static void powerDown(NRF24L01_Device* Device);
     NRF24L01_EnableDynamicPayloads(Device);
 
     //утановка ретрансмитта в 0
-    writeRegisterOneByte(Device, SETUP_RETR, 0x10);
+    writeRegisterOneByte(Device, SETUP_RETR, 0x1f);
+
+    //выставим 2 мб
+    writeRegisterOneByte(Device, RF_SETUP, 0B1111);
 
     // Flush buffers
     flushTX(Device);
@@ -907,9 +910,7 @@ static void powerUpTx(NRF24L01_Device* Device)
 
 uint8_t NRF24L01_get_send_status(NRF24L01_Device* Device)
 {
-	uint8_t res = Device->send_status;
-	Device->send_status = 0;
-	return res;
+	return Device->send_status;
 }
 
 /* Interrupt Service Routines ------------------------------------------------*/
